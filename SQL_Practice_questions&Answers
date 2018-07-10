@@ -1,0 +1,331 @@
+ 
+CREATE TABLE order_table
+    (order_day datetime, order_id varchar(3), product_id varchar(2), quantity int, price int)
+;
+   
+INSERT INTO order_table
+    (order_day, order_id, product_id, quantity, price)
+VALUES
+    ('2011-07-01 00:00:00', 'O1', 'P1', 5, 5),
+    ('2011-07-01 00:00:00', 'O2', 'P2', 2, 10),
+    ('2011-07-01 00:00:00', 'O3', 'P3', 10, 25),
+    ('2011-07-01 00:00:00', 'O4', 'P1', 20, 5),
+    ('2011-07-02 00:00:00', 'O5', 'P3', 5, 25),
+    ('2011-07-02 00:00:00', 'O6', 'P4', 6, 20),
+    ('2011-07-02 00:00:00', 'O7', 'P1', 2, 5),
+    ('2011-07-02 00:00:00', 'O8', 'P5', 1, 50),
+    ('2011-07-02 00:00:00', 'O9', 'P6', 2, 50),
+    ('2011-07-02 00:00:00', 'O10', 'P2', 4, 10)
+;
+ 
+1) Write a SQL to get all products that got sold both days and number of times product is sold
+select A.product_id, sum(A.countp) as count
+from
+(select  count(product_id) as countp,product_id,order_day
+           from order_table
+group by product_id,order_day ) A,
+(select  count(distinct(order_day)) as countp,product_id
+           from order_table
+group by product_id ) B
+where A.product_id = B.product_id
+and B.countp = 2
+group by A.product_id
+ 
+            product_id       count
+1          P1        3
+2          P2        2
+3          P3        2
+ 
+ 
+--Best answer
+SELECT product_id, count(distinct quantity)
+FROM order_table
+GROUP BY product_id
+HAVING count(distinct order_day)>1
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+2) Get me products ordered on 02-jul-11 but not on 01-jul-11
+            product_id
+1          P4
+2          P5
+3          P6
+ 
+ 
+select  distinct product_id  from order_table  where order_day  = '02-JUL-11'
+except
+select  distinct product_id  from order_table  where order_day  = '01-JUL-11'
+ 
+--Takes more time than previous
+select product_id from order_table
+where order_Day = '02-jul-11'
+and product_id not in (select product_id from order_table where order_Day = '01-jul-11' )
+ 
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+3) Get me highest sold product(Qry*Price ) on both days
+select product_id from
+(
+select dense_rank() over(partition by order_day order by rev desc) as rank, product_id
+from
+(select sum(quantity*price) as rev, product_id,order_day
+from order_table
+group by product_id,order_day
+) A
+) X
+where rank = 1
+ 
+           product_id
+1          P3
+2          P3
+ 
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+4) For all products get total sales of 01-jul-11 and 02-jul-11 adjacent to each other
+product_id       sales1  sales2
+1          P1        125      10
+2          P2        20        40
+3          P3        250      125
+4          P4        0          120
+5          P5        0          50
+6          P6        0          100
+ 
+select product_id, sum(revenue_01)as sales1 ,sum(revenue_02) as sales2
+                       from
+                       (
+                                                                        select A.product_id,A.order_day, 
+                                                                                                case when A.order_day = '01-jul-11' then sum(A.quantity*A.price) else 0  end as revenue_01,
+                                                                                                case when A.order_day = '02-jul-11' then sum(A.quantity*A.price) else 0  end as revenue_02
+                                                                        from order_table A
+                                                               group by A.product_id,A.order_day
+) X
+group by product_id
+                                                                       
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+5) Get me all products day vis, that was ordered more than once
+Date       product_id
+01-jul-11   P1
+ 
+select  product_id,order_day
+from order_table
+group by product_id,order_day
+having count(product_id) > 1
+ 
+ 
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ 
+ 
+6)Given table below
+ 
+Order_id          item     Qty
+O1       A1        5
+O2       A2        1
+O3       A3        3
+                                               
+Explode data into single unit level records                 
+                       
+Order_id          item     Qty
+O1       A1        1
+O1       A1        1
+O1       A1        1
+O1       A1        1
+O1       A1        1
+O2       A2        1
+O3       A3        3
+O3       A3        3
+O3       A3        3
+ 
+with cte(order_id, item,qty,val) as
+(select order_id,item,quantity, 1 from order_tab
+union all
+select c.order_id,c.item,c.qty - 1, c.val
+from order_tab o
+join cte c on c.order_id= o.order_id and o.item=c.item and c.qty > 1
+)
+select order_id,item,val
+from cte
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+create table Product (productId varchar(3),ProductGroup varchar(20),ProductName varchar(20))
+go
+insert into Product values ('P1','Book','Harry Potter 1')
+insert into Product values ('P2','Book','Harry Potter 2')
+insert into Product values ('P3','Electronics','Nikon 10 MPS')
+insert into Product values ('P4','Electronics','Canon 8 MPS')
+insert into Product values ('P5','Electronics','Canon 10 MPS')
+insert into Product values ('P6','Video DVD','Pirates 1')
+insert into Product values ('P7','Video DVD','Pirates 2')
+insert into Product values ('P8','Video DVD','HP1')
+insert into Product values ('P9','Video DVD','HP2')
+insert into Product values ('P10','Shoes','Nike 10')
+insert into Product values ('P11','Shoes','Nike 11')
+insert into Product values ('P12','Shoes','Adidas 10')
+insert into Product values ('P13','Shoes','Adidas 09')
+insert into Product values ('P14','Book','God Father 1')
+insert into Product values ('P15','Book','God Father 2')
+go
+create table SalesFact (SANPSHOT_DAY date, PRODUCT_ID varchar(3),sales_amt int)
+insert into SalesFact values ('20-Jul-11','P1',10)
+insert into SalesFact values ('20-Jul-11','P2',5)
+insert into SalesFact values ('20-Jul-11','P8',100)
+insert into SalesFact values ('20-Jul-11','P3',5)
+insert into SalesFact values ('20-Jul-11','P4',25)
+insert into SalesFact values ('20-Jul-11','P5',15)
+insert into SalesFact values ('20-Jul-11','P6',35)
+insert into SalesFact values ('20-Jul-11','P7',5)
+insert into SalesFact values ('20-Jul-11','P9',30)
+insert into SalesFact values ('20-Jul-11','P10',8)
+insert into SalesFact values ('20-Jul-11','P11',45)
+go
+ 
+create table GlanceFactView (SANPSHOT_DAY date, PRODUCT_ID varchar(3),glance_views int)
+go
+insert into GlanceFactView values ('20-Jul-11','P1',1000)
+insert into GlanceFactView values ('20-Jul-11','P2',800)
+insert into GlanceFactView values('20-Jul-11','P8',700)
+insert into GlanceFactView values('20-Jul-11','P3',800)
+insert into GlanceFactView values('20-Jul-11','P4',500)
+insert into GlanceFactView values('20-Jul-11','P5',250)
+insert into GlanceFactView values('20-Jul-11','P6',10)
+insert into GlanceFactView values('20-Jul-11','P7',1000)
+insert into GlanceFactView values('20-Jul-11','P9',1500)
+insert into GlanceFactView values('20-Jul-11','P10',600)
+insert into GlanceFactView values('20-Jul-11','P12',670)
+insert into GlanceFactView values('20-Jul-11','P13',300)
+insert into GlanceFactView values('20-Jul-11','P14',230)
+go
+create table InventoryFact (SANPSHOT_DAY date, PRODUCT_ID varchar(3),on_hand_qty int)
+go
+insert into InventoryFact values ('20-Jul-11','P1',100)
+insert into InventoryFact values ('20-Jul-11','P2',70)
+insert into InventoryFact values ('20-Jul-11','P8',90)
+insert into InventoryFact values ('20-Jul-11','P3',10)
+insert into InventoryFact values ('20-Jul-11','P4',30)
+insert into InventoryFact values ('20-Jul-11','P5',100)
+insert into InventoryFact values ('20-Jul-11','P6',120)
+insert into InventoryFact values ('20-Jul-11','P7',70)
+insert into InventoryFact values ('20-Jul-11','P9',90)
+go
+ 
+create table AdSpendFact (SANPSHOT_DAY date, PRODUCT_ID varchar(3),glance_views int)
+go
+insert into AdSpendFact values ('20-Jul-11','P1',10)
+insert into AdSpendFact values ('20-Jul-11','P2',5)
+insert into AdSpendFact values ('20-Jul-11','P8',100)
+insert into AdSpendFact values ('20-Jul-11','P3',5)
+insert into AdSpendFact values ('20-Jul-11','P4',25)
+insert into AdSpendFact values ('20-Jul-11','P5',15)
+insert into AdSpendFact values ('20-Jul-11','P6',35)
+insert into AdSpendFact values ('20-Jul-11','P7',5)
+insert into AdSpendFact values ('20-Jul-11','P9',30)
+insert into AdSpendFact values ('20-Jul-11','P10',8)
+insert into AdSpendFact values ('20-Jul-11','P11',45)
+go
+ 
+7) Write a sql that will give top product by sales in each of the product groups and additionally gather GV, Inventory and ad spend measures also for the product.
+ SalesFact
+Product
+ 
+select Y.product_group, Y.product_id,coalesce(Y.sum,0),coalesce(gf.glance_views,0) , coalesce(invf.on_hand_qty,0),coalesce(af.glance_views,0)
+from
+(
+select product_id,product_group, rank() over(partition by product_group order by sum desc) as rank, sum,SANPSHOT_DAY
+from
+(
+select p.productid as product_id,p.productgroup as product_group, sum(sales_amt) over(partition by p.productgroup,p.productid)as sum, sf.SANPSHOT_DAY
+from salesfact sf
+right join  product p
+    on p.productid = sf.product_id
+    ) X
+) Y
+ 
+left join GlanceFactView gf
+on gf.PRODUCT_ID = Y.PRODUCT_ID
+and gf.SANPSHOT_DAY = Y.SANPSHOT_DAY
+ 
+left join InventoryFact invf
+on invf.PRODUCT_ID = Y.PRODUCT_ID
+and invf.SANPSHOT_DAY = Y.SANPSHOT_DAY
+ 
+left join AdSpendFact af
+on af.PRODUCT_ID = Y.PRODUCT_ID
+and af.SANPSHOT_DAY = Y.SANPSHOT_DAY
+ 
+where rank = 1
+ 
+ 
+ 
+8) For the table structures as above write a sql to give all Products that have glance views but no sales.
+select gfpid
+from
+(
+select gf.product_id as gfpid, sf.product_id as sfpid
+from GlanceFactView gf
+left join SalesFact sf
+on gf.product_id = sf.product_id
+and gf.SANPSHOT_DAY=sf.SANPSHOT_DAY ) X
+where sfpid is null
+ 
+ 
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+10)
+CREATE TABLE PHONE_LOG(SOURCE_PHONE_NUMBER INT,DESTINATION_PHONE_NUMBER INT,CALL_START_DATETIME DATETIME)
+GO
+ 
+INSERT INTO PHONE_LOG VALUES(1234,4567,'1/7/2011')
+INSERT INTO PHONE_LOG VALUES(1234,2345,'1/7/2011')
+INSERT INTO PHONE_LOG VALUES(1234,3456,'1/7/2011')
+INSERT INTO PHONE_LOG VALUES(1234,3456,'1/7/2011')
+INSERT INTO PHONE_LOG VALUES(1234,4567,'1/7/2011')
+INSERT INTO PHONE_LOG VALUES(1222,7890,'1/7/2011')
+INSERT INTO PHONE_LOG VALUES(1222,7680,'1/7/2011')
+INSERT INTO PHONE_LOG VALUES(1222,2345,'1/7/2011')
+ 
+Please provide an SQL query to display the source_phone_number and a flag where the flag needs to be set to Y if first called number and last called number are the same and N if the first called number
+and last called number are different
+ 
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+11)
+Consider and Orders table which has 15 years of historical orders and you are loading everyday incremental orders into it on a daily basus(1 million orders per day are loaded and historically the fill order is close to a billion orders)
+The orders table is range partitined on order_day
+ 
+ORDERS
+-------
+ORDER_ID
+ORDER_DA&
+CUSTOMER_ID
+ADDRESS_ID
+ITEM_ID
+PRICE
+QUANTITY
+ 
+ORDERS_DAILY_INCREMENT
+----------
+SNAPSHOT_DAY
+ORDER_ID
+ORDER-DAY
+CUSTOMER_ID
+ADDRESS_ID
+ITEM_ID
+PRICE
+QUANTITY
+ 
+If you are asked to build a daily aggregate table like one shown below with new_customer metric and reactivated_customer metric( a reactivated customer is the one who did not have purchase in last one year but made a purchase today)
+on each day
+ 
+CUSTOMER_AGGREGATE
+--------------------
+SNAPSHOT_DAY
+NEW_CUSTOMERS
+REACTIVATED_CUSTOMERS
+ 
+Would you  build an interim tablss to support this requirement?
+if yes, why and what would they look like along with SQLS that you would use on ORDERS and ORDER_DAILY_INCREMENT table to build those interim tables
+if no, why not and please provide sql that you would use to build the final CUSTOMER_AGGREGATE table using ORDERS and ORDER_DAILY_INCREMENT
+ 
+ 
+ 
+ 
